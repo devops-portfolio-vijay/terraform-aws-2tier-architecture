@@ -1,0 +1,21 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Terraform variables containing secrets
+terraform.tfvars
+*.tfvars.json
+
+# Terraform lock file can be committed
+# .terraform.lock.hcl
+
+# SSH/private keys
+*.pem
+*.key
+
+# OS/editor files
+.DS_Store
+.vscode/
