@@ -1,94 +1,100 @@
 # AWS Two-Tier Architecture using Terraform
 
-Terraform project for provisioning AWS infrastructure with public and private subnets across two Availability Zones, private application servers, and a protected database tier.
+This project demonstrates how to provision AWS infrastructure using Terraform, with public and private subnets across two Availability Zones, private EC2 application instances, and a database tier.
 
 ## 🏗️ Architecture
 
 ```mermaid
-flowchart TB
-    USER(["🌐 Internet Users"])
+flowchart TD
+    U(["🌐 Internet User"])
+    ALB["Public Load Balancer"]
 
-    subgraph AWS["AWS Cloud"]
-        IGW["Internet Gateway"]
+    U --> ALB
 
-        subgraph VPC["VPC · Example: 10.0.0.0/16"]
-            ALB["Application Load Balancer"]
-
-            subgraph AZA["Availability Zone A"]
-                PA["Public Subnet A"]
-                NA["NAT Gateway A"]
-                PVA["Private App Subnet A"]
-                EA["EC2 · Docker / Nginx"]
-            end
-
-            subgraph AZB["Availability Zone B"]
-                PB["Public Subnet B"]
-                NB["NAT Gateway B"]
-                PVB["Private App Subnet B"]
-                EB["EC2 · Docker / Nginx"]
-            end
-
-            subgraph DBT["Private Database Subnets"]
-                DB[("Amazon RDS · MySQL")]
-            end
-
-            PA --- ALB
-            PB --- ALB
-            PVA --- EA
-            PVB --- EB
-            EA --> DB
-            EB --> DB
-            EA -. "Outbound" .-> NA
-            EB -. "Outbound" .-> NB
+    subgraph VPC["AWS VPC"]
+        subgraph AZ1["Availability Zone A"]
+            PUB1["Public Subnet A"]
+            PRIV1["Private Subnet A"]
+            EC2A["EC2 · Docker + Nginx"]
+            PUB1 --- ALB
+            PRIV1 --- EC2A
         end
+
+        subgraph AZ2["Availability Zone B"]
+            PUB2["Public Subnet B"]
+            PRIV2["Private Subnet B"]
+            EC2B["EC2 · Docker + Nginx"]
+            PUB2 --- ALB
+            PRIV2 --- EC2B
+        end
+
+        DB[("Private Database · RDS MySQL")]
+        NAT1["NAT Gateway A"]
+        NAT2["NAT Gateway B"]
+
+        ALB --> EC2A
+        ALB --> EC2B
+        EC2A --> DB
+        EC2B --> DB
+        EC2A -. "Outbound internet" .-> NAT1
+        EC2B -. "Outbound internet" .-> NAT2
     end
 
-    USER --> IGW --> ALB
-    ALB --> EA
-    ALB --> EB
-    NA --> IGW
-    NB --> IGW
+    classDef public fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef private fill:#ffedd5,stroke:#ea580c,color:#7c2d12
+    classDef database fill:#dcfce7,stroke:#16a34a,color:#14532d
 
-    classDef internet fill:#172554,color:#fff,stroke:#60a5fa
-    classDef public fill:#164e63,color:#fff,stroke:#67e8f9
-    classDef private fill:#713f12,color:#fff,stroke:#fbbf24
-    classDef database fill:#14532d,color:#fff,stroke:#86efac
-
-    class USER,IGW internet
-    class ALB,PA,PB,NA,NB public
-    class PVA,PVB,EA,EB private
+    class ALB,PUB1,PUB2,NAT1,NAT2 public
+    class PRIV1,PRIV2,EC2A,EC2B private
     class DB database
 ```
 
-*The diagram illustrates the intended architecture. Confirm the actual Terraform resources before treating every component as deployed.*
+### How It Works
 
-## 🔍 How It Works
-
-- **Public subnets:** Host the internet-facing load balancer and NAT Gateways.
-- **Private application subnets:** Host EC2 instances running the application or Docker containers without direct inbound internet access.
-- **Application Load Balancer:** Routes incoming requests to healthy application targets.
+- **Public subnets:** Host the internet-facing Application Load Balancer and NAT Gateways.
+- **Private application subnets:** Host EC2 instances running Docker and Nginx without direct inbound internet access.
+- **Load balancer:** Distributes incoming requests to healthy application instances.
 - **NAT Gateways:** Allow private instances to initiate outbound internet connections.
-- **Private database tier:** Places Amazon RDS MySQL in private database subnets, with access restricted to authorized application resources.
-- **Terraform:** Creates and manages the infrastructure through reusable configuration.
+- **Private database tier:** Hosts Amazon RDS MySQL, accessible only to authorized application resources.
+- **Terraform:** Provisions and manages the AWS infrastructure using configuration files.
 
-## 🛠️ Technologies
+*The diagram represents the intended architecture. Confirm that each resource is defined in the Terraform configuration before treating it as deployed.*
 
-- AWS VPC, EC2, Subnets and Route Tables
+## 🛠️ Technologies Used
+
+- AWS VPC
+- Public and Private Subnets
 - Internet Gateway and NAT Gateway
 - Application Load Balancer
-- Amazon RDS MySQL
-- Security Groups
-- Terraform
+- Amazon EC2
 - Docker and Nginx
+- Amazon RDS MySQL
+- AWS Security Groups
+- Terraform
+- Git and GitHub
+
+## 📁 Repository Structure
+
+```text
+terraform-aws-2tier-architecture/
+├── *.tf
+├── modules/
+└── README.md
+```
+
+The exact files and module structure depend on the repository's Terraform configuration.
 
 ## ⚙️ Prerequisites
 
-- AWS account with the required permissions
-- Terraform
-- AWS CLI
-- Git
+Install the following tools:
 
-Verify the installation and AWS credentials:
+- [Terraform](https://developer.hashicorp.com/terraform/install)
+- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+- [Git](https://git-scm.com/downloads)
+
+You also need an AWS account with permissions to create the required resources.
+
+Verify your setup:
 
 ```bash
 terraform version
@@ -96,69 +102,92 @@ aws --version
 aws sts get-caller-identity
 ```
 
-## 🚀 Setup and Deployment
+Configure AWS credentials using a supported method, such as an AWS CLI profile. Never commit credentials to GitHub.
 
-Clone the repository:
+## 🚀 Deployment
+
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/devops-portfolio-vijay/terraform-aws-2tier-architecture.git
 cd terraform-aws-2tier-architecture
 ```
 
-Initialize Terraform:
+If the Terraform configuration is in a subdirectory, navigate to that directory before running the commands below.
+
+### 2. Initialize Terraform
 
 ```bash
 terraform init
 ```
 
-Format and validate the configuration:
+Initializes the working directory and downloads the required providers.
+
+### 3. Format and validate
 
 ```bash
 terraform fmt -recursive
 terraform validate
 ```
 
-Review the proposed infrastructure changes:
+Checks formatting and validates the Terraform configuration.
+
+### 4. Review the deployment plan
 
 ```bash
 terraform plan
 ```
 
-Create the resources after reviewing the plan:
+Review the AWS resources Terraform intends to create or modify.
+
+### 5. Deploy the infrastructure
 
 ```bash
 terraform apply
 ```
 
-Enter `yes` when prompted. Provide any required variables using the configuration documented in the repository.
+Review the plan and enter `yes` when prompted.
 
-## ✅ Verify
+Supply any required input variables using the configuration documented in the repository.
 
-Inspect the configured outputs:
+## ✅ Verify the Deployment
+
+Inspect the configured Terraform outputs:
 
 ```bash
 terraform output
 ```
 
-Use the load balancer DNS name, if provided, to access the application. Check the AWS Console to confirm the EC2 instances, subnets, security groups, and database status.
+Then verify the deployed resources in the AWS Console:
+
+- VPC and subnet associations
+- Internet Gateway and NAT Gateway routing
+- Application Load Balancer and target health
+- EC2 instance status
+- RDS database status and connectivity rules
+
+If a load balancer DNS output is available, open it in a browser to test the application.
+
+## 🔐 Security
+
+- Keep application EC2 instances in private subnets.
+- Restrict application traffic to the load balancer security group.
+- Allow database connections only from authorized application resources.
+- Restrict administrative access to trusted sources.
+- Protect Terraform state and sensitive variable files.
+- Never commit AWS credentials, database passwords, or private keys.
 
 ## 🧹 Cleanup
 
-Remove resources managed by this configuration when they are no longer needed:
+When the infrastructure is no longer required, remove resources managed by Terraform:
 
 ```bash
 terraform destroy
 ```
 
-Review the destruction plan before confirming. NAT Gateways and other provisioned resources can incur AWS charges while they exist.
+Review the destruction plan and confirm when prompted.
 
-## 🔐 Security
-
-- Keep application instances and the database private.
-- Allow application traffic to EC2 only from the load balancer security group.
-- Allow MySQL traffic only from authorized application resources.
-- Restrict administrative access to trusted sources.
-- Never commit AWS credentials, database passwords, or sensitive Terraform state to GitHub.
+**Note:** AWS resources such as NAT Gateways, load balancers, EC2 instances, and RDS databases can incur charges while they exist.
 
 ---
 
